@@ -1,97 +1,152 @@
-﻿namespace CurrencyServerApp2
+﻿
+namespace FileService.Controllers
 {
-    public partial class ServerForm : Form
+    [Route("api/[controller]")]
+    [ApiController]
+    public class FileController : ControllerBase
     {
-        private HttpClient httpClient = new HttpClient();
+        private readonly string _storagePath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
 
-        public bool InvokeRequired { get; private set; }
-
-        public ServerForm()
+        public FileController()
         {
-            InitializeComponent();
+            if (!Directory.Exists(_storagePath))
+            {
+                Directory.CreateDirectory(_storagePath);
+            }
         }
 
-        private void InitializeComponent()
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadFiles(IFormFileCollection files)
+        {
+            if (!(files != null && !files) = 0)
+            {
+                return BadRequest("No files uploaded.");
+            }
+
+            foreach (var file in files)
+            {
+                var filePath = Path.Combine(_storagePath, file.FileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+            }
+
+            return Ok("Files uploaded successfully.");
+        }
+
+        private IActionResult BadRequest(string v)
         {
             throw new NotImplementedException();
         }
 
-        private async void buttonUploadLogo_Click(object sender, EventArgs e)
+        [HttpGet("{fileName}")]
+        public IActionResult GetFile(string fileName)
         {
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "Image files (*.jpg, *.jpeg, *.png) | *.jpg; *.jpeg; *.png";
+            var filePath = Path.Combine(_storagePath, fileName);
+            if (!System.IO.File.Exists(filePath))
+                return NotFound();
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    string filePath = openFileDialog.FileName;
-                    await UploadFile(filePath);
-                }
-            }
+            var fileBytes = System.IO.File.ReadAllBytes(filePath);
+            return File(fileBytes, "application/octet-stream", fileName);
         }
 
-        private async Task UploadFile(string filePath)
-        {
-            using (var content = new MultipartFormDataContent())
-            {
-                content.Add(new StreamContent(File.OpenRead(filePath)), "file", Path.GetFileName(filePath));
-
-                var response = await httpClient.PostAsync("http://localhost:5000/api/file/upload", content);
-                if (response.IsSuccessStatusCode)
-                {
-                    var result = await response.Content.ReadAsStringAsync();
-                    AppendText("File uploaded successfully: " + result);
-                }
-                else
-                {
-                    AppendText("Failed to upload file.");
-                }
-            }
-        }
-
-        private void AppendText(string text)
-        {
-            if (InvokeRequired)
-            {
-                Invoke(new Action<string>(AppendText), new object[] { text });
-            }
-            else
-            {
-                textBox1.AppendText(text + Environment.NewLine);
-            }
-        }
-
-        private void Invoke(Action<string> action, object[] objects)
+        private IActionResult File(byte[] fileBytes, string v, string fileName)
         {
             throw new NotImplementedException();
         }
 
-        private class OpenFileDialog
-        {
-            public string Filter { get; internal set; }
-            public string FileName { get; internal set; }
-
-            internal object ShowDialog()
-            {
-                throw new NotImplementedException();
-            }
-        }
-    }
-
-    internal class textBox1
-    {
-        internal static void AppendText(string v)
+        private IActionResult NotFound()
         {
             throw new NotImplementedException();
         }
+
+        [HttpDelete("{fileName}")]
+        public IActionResult DeleteFile(string fileName)
+        {
+            var filePath = Path.Combine(_storagePath, fileName);
+            if (!System.IO.File.Exists(filePath))
+                return NotFound();
+
+            System.IO.File.Delete(filePath);
+            return Ok("File deleted successfully.");
+        }
+
+        private IActionResult Ok(string v)
+        {
+            throw new NotImplementedException();
+        }
+
+        [HttpDelete("delete-multiple")]
+        public IActionResult DeleteFiles([FromBody] string[] fileNames)
+        {
+            foreach (var fileName in fileNames)
+            {
+                var filePath = Path.Combine(_storagePath, fileName);
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+            }
+
+            return Ok("Files deleted successfully.");
+        }
     }
 
-    internal class DialogResult
+    internal class FromBodyAttribute : Attribute
     {
-        public static object OK { get; internal set; }
     }
 
-    public class Form
+    internal class HttpDeleteAttribute : Attribute
     {
+        private string v; public HttpDeleteAttribute(string v)
+        {
+            this.v = v;
+        }
+    }
+
+    internal class HttpGetAttribute : Attribute
+    {
+        private string v; public HttpGetAttribute(string v)
+        {
+            this.v = v;
+        }
+    }
+
+    public interface IFormFileCollection
+    {
+    }
+
+    public interface IActionResult
+    {
+    }
+
+    internal class HttpPostAttribute : Attribute
+    {
+        private string v;
+
+        public HttpPostAttribute(string v)
+        {
+            this.v = v;
+        }
+    }
+
+    public class ControllerBase
+    {
+    }
+
+    internal class ApiControllerAttribute : Attribute
+    {
+    }
+
+    internal class RouteAttribute : Attribute
+    {
+        private string v;
+
+        public RouteAttribute(string v)
+        {
+            this.v = v;
+        }
     }
 }
